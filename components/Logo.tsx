@@ -1,44 +1,23 @@
 import React from 'react';
-import logoPng from '../assets/images/gcf-logo-05.png';
 
 interface LogoProps {
   className?: string;
-  alt?: string;
-  /** 'image' (png) ou 'svg' (inline, currentColor) */
-  variant?: 'image' | 'svg';
 }
 
-export const Logo: React.FC<LogoProps> = ({
-  className,
-  alt = 'GCF Logística',
-  variant = 'image',
-}) => {
-  if (variant === 'image') {
-    return (
-      <img
-        src={logoPng}
-        alt={alt}
-        className={className}
-        loading="eager"
-        draggable={false}
-      />
-    );
-  }
-
-  // SVG inline (permite controlar cor via Tailwind: text-primary, etc.)
+export const Logo: React.FC<LogoProps> = ({ className }) => {
+  // SVG inline baseado no arquivo assets/images/logo.svg enviado.
+  // Usamos 'currentColor' no lugar de cores fixas para permitir que o Tailwind controle a cor (text-primary, etc).
   return (
-    <svg
-      width="400"
-      height="120"
-      viewBox="0 0 400 120"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
+    <svg 
+      width="400" 
+      height="120" 
+      viewBox="0 0 400 120" 
+      fill="none" 
+      xmlns="http://www.w3.org/2000/svg" 
       className={className}
-      role="img"
-      aria-label={alt}
-      preserveAspectRatio="xMidYMid meet"
+      aria-label="GCF Logística"
     >
-      <g id="icon" stroke="currentColor" strokeWidth="6" strokeLinecap="round" vectorEffect="non-scaling-stroke">
+      <g id="icon" stroke="currentColor" strokeWidth="6" strokeLinecap="round">
         <path d="M45.5,100 C25,90 10,70 10,50 C10,30 25,10 45.5,5" />
         <path d="M55,95 C38,85 22,70 22,50 C22,35 32,20 50,15" />
         <path d="M65,90 C50,82 35,70 35,50 C35,40 42,28 55,25" />

@@ -16,7 +16,7 @@ import {
   Trash2, Edit, Shield, X, FileDown, DollarSign, Scale, RefreshCcw, MoreHorizontal,
   ChevronDown, ChevronUp, ChevronRight, ExternalLink, Database, Link, Lock, Wifi, Satellite, Key,
   ClipboardCheck, PackageCheck, AlertOctagon, UserPlus, ShieldCheck, Users, Loader2,
-  TrendingDown, PieChart as PieChartIcon, Wallet, Weight, Server, Globe
+  TrendingDown, PieChart as PieChartIcon, Wallet, Weight, Server, Globe, Printer
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
 
@@ -433,6 +433,7 @@ function App() {
   };
 
   const DashboardView = () => {
+    // ... (no changes in Dashboard logic, just rendering)
     const statusCounts = loadMaps.reduce((acc, map) => {
       acc[map.status] = (acc[map.status] || 0) + 1;
       return acc;
@@ -450,7 +451,6 @@ function App() {
         { name: 'Entregue', value: statusCounts[LoadStatus.DELIVERED] || 0, color: '#0f172a' },
     ].filter(d => d.value > 0);
 
-    // Get recent activities from all maps
     const recentActivities = loadMaps
         .flatMap(m => m.timeline.map(t => ({...t, mapCode: m.code})))
         .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
@@ -566,6 +566,7 @@ function App() {
   };
 
   const InvoiceSelectionView = () => {
+    // ... (no changes needed)
     const availableInvoices = invoices.filter(inv => !inv.isAssigned);
     const toggleInvoice = (id: string) => {
       const next = new Set(selectedInvoiceIds);
@@ -661,6 +662,7 @@ function App() {
   };
 
   const SettingsView = () => {
+    // ... (no changes needed)
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
             <div className="pb-6 border-b border-border">
@@ -767,13 +769,57 @@ function App() {
           setCurrentView('MAP_DETAIL');
       };
 
+      const handleDownloadReport = () => {
+        const doc = new jsPDF();
+        
+        // Header
+        doc.setFontSize(22);
+        doc.setTextColor(15, 23, 42); // Primary color
+        doc.text('Relatório Geral de Cargas', 14, 20);
+        
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 28);
+        
+        // Table Data
+        const tableData = loadMaps.map(m => [
+            m.code,
+            m.status,
+            m.carrierName || '---',
+            m.route || '---',
+            m.invoices.length.toString(),
+            `${m.invoices.reduce((acc, i) => acc + i.totalWeight, 0).toFixed(0)} kg`,
+            formatCurrency(m.invoices.reduce((acc, i) => acc + i.totalValue, 0))
+        ]);
+
+        autoTable(doc, {
+            startY: 35,
+            head: [['Código', 'Status', 'Transportadora', 'Rota', 'Qtd Notas', 'Peso Total', 'Valor Total']],
+            body: tableData,
+            headStyles: { fillColor: [15, 23, 42], fontSize: 10, fontStyle: 'bold' },
+            bodyStyles: { fontSize: 9 },
+            alternateRowStyles: { fillColor: [241, 245, 249] },
+            margin: { top: 35 },
+        });
+
+        doc.save(`relatorio-cargas-${new Date().toISOString().split('T')[0]}.pdf`);
+      };
+
       return (
         <div className="space-y-8 animate-in fade-in duration-500">
             <div className="flex justify-between items-center pb-6 border-b border-border">
                 <h1 className="text-text-main text-5xl font-black leading-tight tracking-tight">Cargas & Rotas</h1>
-                <button onClick={() => setCurrentView('INVOICE_SELECT')} className="bg-primary text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-lg hover:bg-primaryLight transition-colors flex items-center gap-3">
-                    <Plus size={24} /> Novo Mapa
-                </button>
+                <div className="flex gap-4">
+                     <button 
+                        onClick={handleDownloadReport} 
+                        className="bg-white border-2 border-slate-200 text-text-main px-6 py-4 rounded-2xl font-bold text-lg hover:border-primary hover:text-primary transition-colors flex items-center gap-3"
+                    >
+                        <FileDown size={24} /> Relatório
+                    </button>
+                    <button onClick={() => setCurrentView('INVOICE_SELECT')} className="bg-primary text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-lg hover:bg-primaryLight transition-colors flex items-center gap-3">
+                        <Plus size={24} /> Novo Mapa
+                    </button>
+                </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -833,6 +879,7 @@ function App() {
   };
   
   const SeparationListView = () => {
+    // ... (no changes needed)
     const separationMaps = loadMaps.filter(m => [
         LoadStatus.READY_FOR_SEPARATION, LoadStatus.SEPARATION, LoadStatus.IN_SEPARATION,
         LoadStatus.SEPARATED, LoadStatus.SEPARATED_WITH_DIVERGENCE
@@ -950,7 +997,45 @@ function App() {
         setLoadMaps(prev => prev.map(m => m.id === map.id ? { ...m, status: LoadStatus.READY_FOR_SEPARATION } : m));
         setCurrentView('LOAD_MAPS');
     };
-    const generatePDF = () => { alert('Gerando PDF...'); };
+    
+    const generateManifestPDF = () => {
+        const doc = new jsPDF();
+        
+        doc.setFontSize(22);
+        doc.text(`Manifesto de Carga: ${map.code}`, 14, 20);
+        
+        doc.setFontSize(10);
+        doc.text(`Transportadora: ${carrierName}`, 14, 30);
+        doc.text(`Placa: ${vehiclePlate}`, 14, 35);
+        doc.text(`Rota: ${route}`, 14, 40);
+        doc.text(`Data: ${new Date().toLocaleDateString()}`, 150, 30);
+        
+        const tableData = map.invoices.map(inv => [
+            inv.number,
+            inv.customerName,
+            inv.customerCity,
+            `${inv.totalWeight.toFixed(2)} kg`,
+            inv.items.reduce((acc, i) => acc + i.quantity, 0).toString(),
+            formatCurrency(inv.totalValue)
+        ]);
+
+        autoTable(doc, {
+            startY: 50,
+            head: [['Nota Fiscal', 'Cliente', 'Cidade', 'Peso', 'Volumes', 'Valor']],
+            body: tableData,
+            theme: 'grid',
+            headStyles: { fillColor: [15, 23, 42] },
+        });
+
+        // Totals Footer
+        const finalY = (doc as any).lastAutoTable.finalY + 10;
+        doc.setFontSize(12);
+        doc.text(`Total Peso: ${totalWeight.toFixed(2)} kg`, 14, finalY);
+        doc.text(`Total Valor: ${formatCurrency(totalValue)}`, 14, finalY + 6);
+        doc.text(`Total Volumes: ${totalItems}`, 14, finalY + 12);
+
+        doc.save(`manifesto-${map.code}.pdf`);
+    };
 
     // Header Widget Component
     const SummaryWidget = ({ icon: Icon, label, value, color }: any) => (
@@ -979,6 +1064,9 @@ function App() {
                      </div>
                 </div>
                 <div className="flex gap-4">
+                     <button onClick={generateManifestPDF} className="px-6 py-4 bg-white border border-slate-200 text-text-main rounded-2xl font-bold text-lg hover:border-primary hover:text-primary transition-all flex items-center gap-2">
+                        <Printer size={24}/> Imprimir Manifesto
+                     </button>
                      <button onClick={saveChanges} className="px-8 py-4 bg-text-main text-white rounded-2xl font-bold text-lg shadow-lg hover:bg-black transition-all flex items-center gap-2"><Save size={24}/> Salvar</button>
                      {map.status === LoadStatus.PLANNING && (
                         <button onClick={releaseToSeparation} className="px-8 py-4 bg-accent text-white rounded-2xl font-bold text-lg shadow-lg hover:bg-emerald-600 transition-all flex items-center gap-2"><CheckCircle2 size={24}/> Liberar</button>
@@ -1083,6 +1171,7 @@ function App() {
   };
 
   const SeparationDetailView = () => {
+    // ... (no changes needed)
     const map = loadMaps.find(m => m.id === selectedMapId);
     if (!map) return <div>Mapa não encontrado</div>;
 
@@ -1189,6 +1278,7 @@ function App() {
   };
 
   const OperationListView = () => {
+    // ... (no changes needed)
      // Filter for loads that are ready or in progress
      const operationMaps = loadMaps.filter(m => [
         LoadStatus.SEPARATED, LoadStatus.SEPARATED_WITH_DIVERGENCE, 
@@ -1251,6 +1341,7 @@ function App() {
   };
 
   const OperationDetailView = () => {
+    // ... (no changes needed)
     const map = loadMaps.find(m => m.id === selectedMapId);
     if (!map) return <div>Mapa não encontrado</div>;
 
@@ -1373,6 +1464,7 @@ function App() {
   };
 
   const AdminUsersView = () => {
+    // ... (no changes needed)
     if (currentUser?.role !== 'ADMIN') {
         return <div className="p-10 text-center text-xl text-red-500 font-bold">Acesso Negado: Você não tem permissão para visualizar esta página.</div>;
     }
@@ -1449,6 +1541,8 @@ function App() {
         </div>
     );
   };
+  
+  // ... (UserFormModal and export default App)
   
   const UserFormModal = () => {
     if (!isUserModalOpen) return null;

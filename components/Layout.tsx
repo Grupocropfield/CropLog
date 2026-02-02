@@ -44,7 +44,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
         <div className="p-8 flex items-center gap-4">
              {/* Logo Component */}
              <div className="h-16 w-auto flex items-center">
-                <Logo className="h-full w-auto object-contain" />
+                <Logo className="h-full w-auto text-primary" />
              </div>
         </div>
 
@@ -108,7 +108,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
         {/* Mobile Header */}
         <header className="md:hidden flex items-center justify-between bg-white px-6 py-4 shadow-sm z-20">
              <div className="flex items-center gap-2 h-10">
-                <Logo className="h-full w-auto object-contain" />
+                <Logo className="h-full w-auto text-primary" />
              </div>
              <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-2 text-text-main bg-slate-100 rounded-xl">
                 {isMobileMenuOpen ? <X size={28}/> : <Menu size={28}/>}
