@@ -13,10 +13,44 @@ export enum LoadStatus {
 
 export type UserRole = 'ADMIN' | 'LOGISTICA_PLANEJAMENTO' | 'SEPARACAO' | 'STATUS_OPERACAO';
 
+export enum ModuleType {
+  DASHBOARD = 'DASHBOARD',
+  INVOICE_MANAGEMENT = 'INVOICE_MANAGEMENT',
+  LOAD_MAPS = 'LOAD_MAPS',
+  SEPARATION = 'SEPARATION',
+  OPERATION = 'OPERATION',
+  ADMIN = 'ADMIN',
+  SETTINGS = 'SETTINGS',
+}
+
+export enum ActionType {
+  VIEW = 'VIEW',
+  CREATE = 'CREATE',
+  EDIT = 'EDIT',
+  DELETE = 'DELETE',
+  APPROVE = 'APPROVE',
+  EXPORT = 'EXPORT',
+}
+
+export interface Permission {
+  id: string;
+  module: ModuleType;
+  action: ActionType;
+  description: string;
+}
+
+export interface Role {
+  id: string;
+  name: string;
+  description: string;
+  permissions: Permission[];
+}
+
 export interface User {
   id: string;
   name: string;
   role: UserRole;
+  permissions?: Permission[];
 }
 
 export interface Product {

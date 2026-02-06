@@ -1,7 +1,8 @@
 import React from 'react';
 import { Truck, Bell, Search, Menu, X, LogOut, ChevronRight, Settings, LayoutDashboard, FileText, Map, User as UserIcon, CheckSquare, Activity } from 'lucide-react';
-import { ViewState, User } from '../types';
+import { ViewState, User, ModuleType } from '../types';
 import { Logo } from './Logo';
+import { canViewModule } from '../services/permissionService';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -51,24 +52,28 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
         {/* Navigation */}
         <div className="flex-1 overflow-y-auto py-4 px-6 space-y-2">
              <div className="px-4 pb-3 text-xs font-extrabold text-text-light uppercase tracking-widest">Menu Principal</div>
-             
-             {(currentUser?.role === 'ADMIN' || currentUser?.role === 'LOGISTICA_PLANEJAMENTO') && (
-                <>
-                    <NavItem view="DASHBOARD" label="Dashboard" icon={LayoutDashboard} />
-                    <NavItem view="LOAD_MAPS" label="Cargas & Rotas" icon={Map} />
-                    <NavItem view="INVOICE_SELECT" label="Notas Fiscais" icon={FileText} />
-                </>
+
+             {currentUser && canViewModule(currentUser, ModuleType.DASHBOARD) && (
+                <NavItem view="DASHBOARD" label="Dashboard" icon={LayoutDashboard} />
              )}
-             
-             {(currentUser?.role === 'ADMIN' || currentUser?.role === 'SEPARACAO') && (
+
+             {currentUser && canViewModule(currentUser, ModuleType.LOAD_MAPS) && (
+                <NavItem view="LOAD_MAPS" label="Cargas & Rotas" icon={Map} />
+             )}
+
+             {currentUser && canViewModule(currentUser, ModuleType.INVOICE_MANAGEMENT) && (
+                <NavItem view="INVOICE_SELECT" label="Notas Fiscais" icon={FileText} />
+             )}
+
+             {currentUser && canViewModule(currentUser, ModuleType.SEPARATION) && (
                 <NavItem view="SEPARATION_LIST" label="Separação" icon={CheckSquare} />
              )}
-             
-             {(currentUser?.role === 'ADMIN' || currentUser?.role === 'STATUS_OPERACAO') && (
+
+             {currentUser && canViewModule(currentUser, ModuleType.OPERATION) && (
                 <NavItem view="OPERATION_LIST" label="Operação" icon={Activity} />
              )}
 
-             {currentUser?.role === 'ADMIN' && (
+             {currentUser && canViewModule(currentUser, ModuleType.ADMIN) && (
                  <>
                     <div className="px-4 pb-3 pt-8 text-xs font-extrabold text-text-light uppercase tracking-widest">Administração</div>
                     <NavItem view="ADMIN_USERS" label="Usuários" icon={UserIcon} />
@@ -78,8 +83,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
 
         {/* Footer / Settings */}
         <div className="p-6">
-            {currentUser?.role === 'ADMIN' && (
-                 <button 
+            {currentUser && canViewModule(currentUser, ModuleType.SETTINGS) && (
+                 <button
                     onClick={() => onChangeView('SETTINGS')}
                     className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl mb-4 transition-all group ${currentView === 'SETTINGS' ? 'bg-white text-primary shadow-soft' : 'text-text-secondary hover:bg-white hover:text-primary hover:shadow-soft'}`}
                  >

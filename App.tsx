@@ -1,11 +1,13 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Layout } from './components/Layout';
 import { ProductModal } from './components/ProductModal';
+import { PermissionsManager } from './components/PermissionsManager';
 import { MOCK_INVOICES, MOCK_LOAD_MAPS, CARRIER_LIST, MOCK_USERS } from './constants';
-import { Invoice, LoadMap, ViewState, LoadStatus, User, UserRole } from './types';
+import { Invoice, LoadMap, ViewState, LoadStatus, User, UserRole, ModuleType } from './types';
 import { createLoadMap, getStatusColor } from './services/loadService';
 import { fetchErpInvoices } from './services/erpService';
 import { supabase } from './services/supabase';
+import { canViewModule, getAccessibleModules } from './services/permissionService';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { 
@@ -33,6 +35,7 @@ function App() {
   const [isUsersLoading, setIsUsersLoading] = useState(false);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [selectedUserForPermissions, setSelectedUserForPermissions] = useState<User | null>(null);
   const [userFormName, setUserFormName] = useState('');
   const [userFormRole, setUserFormRole] = useState<UserRole>('STATUS_OPERACAO');
 
@@ -153,6 +156,35 @@ function App() {
   const handleLogout = () => {
     setCurrentUser(null);
     setCurrentView('LOGIN');
+  };
+
+  const handleNavigateToView = (view: ViewState) => {
+    if (!currentUser) {
+      setCurrentView('LOGIN');
+      return;
+    }
+
+    const viewModuleMap: Record<ViewState, ModuleType | null> = {
+      LOGIN: null,
+      DASHBOARD: ModuleType.DASHBOARD,
+      INVOICE_SELECT: ModuleType.INVOICE_MANAGEMENT,
+      LOAD_MAPS: ModuleType.LOAD_MAPS,
+      MAP_DETAIL: ModuleType.LOAD_MAPS,
+      SEPARATION_LIST: ModuleType.SEPARATION,
+      SEPARATION_DETAIL: ModuleType.SEPARATION,
+      OPERATION_LIST: ModuleType.OPERATION,
+      OPERATION_DETAIL: ModuleType.OPERATION,
+      ADMIN_USERS: ModuleType.ADMIN,
+      SETTINGS: ModuleType.SETTINGS,
+    };
+
+    const requiredModule = viewModuleMap[view];
+    if (requiredModule && !canViewModule(currentUser, requiredModule)) {
+      alert(`Você não tem permissão para acessar este módulo.`);
+      return;
+    }
+
+    setCurrentView(view);
   };
 
   // --- API Handlers ---
@@ -1502,7 +1534,6 @@ function App() {
   };
 
   const AdminUsersView = () => {
-    // ... (no changes needed)
     if (currentUser?.role !== 'ADMIN') {
         return <div className="p-10 text-center text-xl text-red-500 font-bold">Acesso Negado: Você não tem permissão para visualizar esta página.</div>;
     }
@@ -1514,67 +1545,81 @@ function App() {
                      <h1 className="text-text-main text-5xl font-black leading-tight tracking-tight">Gestão de Usuários</h1>
                      <p className="text-text-secondary mt-2 text-xl">Controle de acesso e permissões.</p>
                 </div>
-                <button 
-                    onClick={handleOpenNewUser} 
+                <button
+                    onClick={handleOpenNewUser}
                     className="bg-primary hover:bg-primaryLight text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-lg shadow-primary/20 transition-all flex items-center gap-3"
                 >
                     <UserPlus size={24} /> Novo Usuário
                 </button>
             </div>
 
-            <div className="bg-white rounded-3xl shadow-soft overflow-hidden border border-border/50">
-                <table className="w-full text-left">
-                    <thead className="bg-background border-b border-border">
-                        <tr>
-                            <th className="p-6 text-base font-bold uppercase tracking-wider text-text-light">Nome</th>
-                            <th className="p-6 text-base font-bold uppercase tracking-wider text-text-light">Função / Permissão</th>
-                            <th className="p-6 text-base font-bold uppercase tracking-wider text-text-light text-right">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                        {isUsersLoading ? (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2">
+                <div className="bg-white rounded-3xl shadow-soft overflow-hidden border border-border/50">
+                    <table className="w-full text-left">
+                        <thead className="bg-background border-b border-border">
                             <tr>
-                                <td colSpan={3} className="p-10 text-center">
-                                    <div className="flex items-center justify-center gap-3 text-text-secondary">
-                                        <Loader2 className="animate-spin" /> Carregando usuários...
-                                    </div>
-                                </td>
+                                <th className="p-6 text-base font-bold uppercase tracking-wider text-text-light">Nome</th>
+                                <th className="p-6 text-base font-bold uppercase tracking-wider text-text-light">Função / Permissão</th>
+                                <th className="p-6 text-base font-bold uppercase tracking-wider text-text-light text-right">Ações</th>
                             </tr>
-                        ) : users.map(user => (
-                            <tr key={user.id} className="hover:bg-slate-50 transition-colors group">
-                                <td className="p-6">
-                                    <div className="flex items-center gap-4">
-                                        <div className="size-12 rounded-full bg-slate-100 flex items-center justify-center text-lg font-bold text-text-secondary border-2 border-slate-200">
-                                            {user.name.charAt(0).toUpperCase()}
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                            {isUsersLoading ? (
+                                <tr>
+                                    <td colSpan={3} className="p-10 text-center">
+                                        <div className="flex items-center justify-center gap-3 text-text-secondary">
+                                            <Loader2 className="animate-spin" /> Carregando usuários...
                                         </div>
-                                        <span className="font-bold text-xl text-text-main">{user.name}</span>
-                                    </div>
-                                </td>
-                                <td className="p-6">
-                                    <span className={`px-4 py-2 rounded-xl text-sm font-bold border ${getRoleColor(user.role)} uppercase tracking-wide`}>
-                                        {getRoleLabel(user.role)}
-                                    </span>
-                                </td>
-                                <td className="p-6 text-right">
-                                    <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button 
-                                            onClick={() => handleEditUser(user)}
-                                            className="p-3 bg-white border border-slate-200 rounded-xl text-text-secondary hover:text-primary hover:border-primary transition-all shadow-sm"
+                                    </td>
+                                </tr>
+                            ) : users.map(user => (
+                                <tr key={user.id} className={`transition-colors group ${selectedUserForPermissions?.id === user.id ? 'bg-primary/5' : 'hover:bg-slate-50'}`}>
+                                    <td className="p-6">
+                                        <button
+                                          onClick={() => setSelectedUserForPermissions(user)}
+                                          className="flex items-center gap-4 w-full text-left hover:opacity-70 transition-opacity"
                                         >
-                                            <Edit size={20} />
+                                            <div className="size-12 rounded-full bg-slate-100 flex items-center justify-center text-lg font-bold text-text-secondary border-2 border-slate-200">
+                                                {user.name.charAt(0).toUpperCase()}
+                                            </div>
+                                            <span className="font-bold text-xl text-text-main">{user.name}</span>
                                         </button>
-                                        <button 
-                                            onClick={() => handleDeleteUser(user.id)}
-                                            className="p-3 bg-white border border-slate-200 rounded-xl text-red-500 hover:bg-red-50 hover:border-red-200 transition-all shadow-sm"
-                                        >
-                                            <Trash2 size={20} />
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                                    </td>
+                                    <td className="p-6">
+                                        <span className={`px-4 py-2 rounded-xl text-sm font-bold border ${getRoleColor(user.role)} uppercase tracking-wide`}>
+                                            {getRoleLabel(user.role)}
+                                        </span>
+                                    </td>
+                                    <td className="p-6 text-right">
+                                        <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                                onClick={() => handleEditUser(user)}
+                                                className="p-3 bg-white border border-slate-200 rounded-xl text-text-secondary hover:text-primary hover:border-primary transition-all shadow-sm"
+                                            >
+                                                <Edit size={20} />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteUser(user.id)}
+                                                className="p-3 bg-white border border-slate-200 rounded-xl text-red-500 hover:bg-red-50 hover:border-red-200 transition-all shadow-sm"
+                                            >
+                                                <Trash2 size={20} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+              </div>
+
+              <div className="lg:col-span-1">
+                <PermissionsManager
+                  selectedUser={selectedUserForPermissions}
+                  allUsers={users}
+                />
+              </div>
             </div>
         </div>
     );
